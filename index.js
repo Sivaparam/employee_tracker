@@ -1,10 +1,10 @@
-// //packages
-// const fs = require('fs');
+require('dotenv').config();
+
 //Inquirer package
 const inquirer = require('inquirer');
 //import and require mysql
 const mysql = require('mysql2');
-const ctable = require('console.table');
+//const ctable = require('console.table');
 
 const { exit } = require('process');
 
@@ -17,7 +17,7 @@ const db = mysql.createConnection(
     {
         host: 'localhost',
         user: 'root',
-        password: '',
+        password: process.env.MYSQLPASSWORD,
         database: 'employee_db'
     });
 
@@ -30,35 +30,6 @@ const options = [
         choices: ['View All Employees', 'Add Employee', 'Update Employee Role', 'View All Roles', 'Add Role', 'View All Departments', 'Add Department', 'Quit'],
     },
 ];
-
-// Inquirer for Add Department
-const depPrompts = [
-    {
-        type: 'input',
-        name: 'depName',
-        message: 'Enter Department Name:',
-    },
-];
-
-// //inquirer to add role
-// const rolePrompts = [
-//     {
-//         type: 'input',
-//         name: 'title',
-//         message: 'Enter Title for Role:',
-//     },
-//     {
-//         type: 'input',
-//         name: 'salary',
-//         message: 'Enter Salary for Role:',
-//     },
-//     {
-//         type: 'rawlist',
-//         name: 'dept_id',
-//         message: 'What is department',
-//         choices: getDepList(),
-//     },
-// ];
 
 //displayoption function is self initiated function that display options for user to select
 displayoptions();
@@ -99,38 +70,91 @@ async function displayoptions() {
 };
 
 //retrieves all employee details from employee table
-function getEmployeeData() {
-    console.log("Employee");
+async function getEmployeeData() {
+    const employeeData = await getEmployeeList();
+    console.table(employeeData);
+    displayoptions();
 };
 
-// //adds a new employee to employee table
-// async function addEmployee() {
-//     await inquirer.prompt(empPrompts)
-//         .then(data => {
-//             const employee = new Employee(data.firstName, data.lastName);
-//             const sql = employee.addEmployee();
-//             Connection.createQuery(sql, [data.firstName, data.lastName], (err, result) => {
-//                 err ? console.log(err) : console.log(`Added ${data.firstName} ${data.lastName} to employee table`)
-//             })
-//         })
-//         .catch(error => {
-//             console.log(`Error occurred in add Employee ${error}`);
-//         })
-// };
+//adds a new employee to employee table
+async function addEmployee() {
 
-// //updates role of employee  to employee table
-// function updateEmpRole() {
+    const roleList = await getRoleList();
+    var roles = [];
+    roleList.forEach(element => {
+        roles.push(element.title);
+    });
 
-// };
+    const mangerList = await getEmployeeList();
+    var managers = [];
+    mangerList.forEach(element => {
+        managers.push(element.first_name.concat(" ", element.last_name));
+    });
+
+    // inquirer for add employee
+    const empPrompts = [
+        {
+            type: 'input',
+            name: 'firstname',
+            message: 'Enter Employee First Name:',
+        },
+        {
+            type: 'input',
+            name: 'lastname',
+            message: 'Enter Employee Last Name:',
+        },
+        {
+            type: 'rawlist',
+            name: 'emprole',
+            message: 'Enter Employee role:',
+            choices: roles,
+        },
+        {
+            type: 'rawlist',
+            name: 'manager',
+            message: 'Who is employee manager:',
+            choices: managers,
+        },
+    ];
+    await inquirer.prompt(empPrompts)
+        .then(data => {
+
+            console.log(data.firstname);
+            console.log(data.lastname);
+            console.log(data.emprole);
+            console.log(data.manager);
+
+            roleList.forEach(element => {
+                if (data.emprole === element.title) {
+                    role_id = element.id;
+                    console.log(`I am role ${role_id}`);
+                }
+            });
+
+            mangerList.forEach(element => {
+                var empName = element.first_name.concat(" ", element.last_name);
+                if (data.manager === empName)
+                    manager_id = element.id;
+            });
+
+            db.query(`INSERT INTO employee(first_name, last_name, role_id, manager_id) VALUES ('${data.firstname}', '${data.lastname}', '${role_id}', '${manager_id}')`);
+            console.log(`{empName} updated to employee table`);
+        })
+        .catch(error => {
+            console.log(`Error occurred in add Employee ${error}`);
+        });
+    displayoptions();
+};
+
+//updates role of employee  to employee table
+function updateEmpRole() {
+
+};
 
 //retrieves all role details from role table
 async function getRoles() {
-    await new Promise((resolve, reject) => {
-        db.query('SELECT * FROM role', (err, results) => {
-            err ? reject(console.error(err)) : resolve(console.table(results));
-        })
-    });
-    
+    const roleList = await getRoleList();
+    console.table(roleList);
     displayoptions();
 };
 
@@ -179,6 +203,15 @@ async function addRole() {
 
 //adds a new department to department table
 async function addDepartment() {
+    // Inquirer for Add Department
+    const depPrompts = [
+        {
+            type: 'input',
+            name: 'depName',
+            message: 'Enter Department Name:',
+        },
+    ];
+
     await inquirer.prompt(depPrompts)
         .then(data => {
             db.query(`INSERT INTO department(name) VALUES ('${data.depName}')`);
@@ -187,6 +220,7 @@ async function addDepartment() {
         .catch(error => {
             console.log(`Error occurred during add department ${error}`);
         })
+
     displayoptions();
 };
 
@@ -202,6 +236,24 @@ const getDepList = () => {
     return new Promise((resolve, reject) => {
         db.query('SELECT * FROM department', (err, results) => {
             err ? reject(err) : resolve(results)
+        });
+    });
+};
+
+//retrieves all roles from role table
+const getRoleList = () => {
+    return new Promise((resolve, reject) => {
+        db.query('SELECT * FROM role', (err, results) => {
+            err ? reject(err) : resolve(results);
+        });
+    });
+};
+
+//retrieves all managers from employee table
+const getEmployeeList = () => {
+    return new Promise((resolve, reject) => {
+        db.query('SELECT * FROM employee', (err, results) => {
+            err ? reject(err) : resolve(results);
         });
     });
 };
