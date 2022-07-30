@@ -43,13 +43,18 @@ Install MYSQL server
 
 ## Mock-up screen:
 
-![alt text](./src/image1.png)
+![alt text](./assets/image1.png)
+
+![alt text](./assets/image2.png)
+
+![alt text](./assets/image3.png)
 
 ### Github URL: 
-https://github.com/Sivaparam/team-profile-generator
+https://github.com/Sivaparam/employee_tracker
 
 ### Demo of Application:
-https://drive.google.com/file/d/1XNlvocbNjba5JvqBNgoOGwKy1PZRIDm0/view
+https://drive.google.com/file/d/13-53TJpPWX-b0wdEB-mhDUlIBiGM7Vhb/view
+
 
 
 

@@ -5,14 +5,8 @@ const inquirer = require('inquirer');
 //import and require mysql
 const mysql = require('mysql2');
 const { resolve } = require('path');
-//const ctable = require('console.table');
 
 const { exit } = require('process');
-
-// //import class and prompts
-// const { Department, depPrompts } = require('./lib/department');
-// const { Employee, empPrompts } = require('./lib/employee');
-// const { Role, rolePrompts } = require('./lib/role');
 
 //establishes connection to database
 const db = mysql.createConnection(
