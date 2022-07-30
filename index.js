@@ -4,6 +4,7 @@ require('dotenv').config();
 const inquirer = require('inquirer');
 //import and require mysql
 const mysql = require('mysql2');
+const { resolve } = require('path');
 //const ctable = require('console.table');
 
 const { exit } = require('process');
@@ -13,6 +14,7 @@ const { exit } = require('process');
 // const { Employee, empPrompts } = require('./lib/employee');
 // const { Role, rolePrompts } = require('./lib/role');
 
+//establishes connection to database
 const db = mysql.createConnection(
     {
         host: 'localhost',
@@ -40,7 +42,7 @@ async function displayoptions() {
         .then(data => {
             switch (data.optionSelected) {
                 case "View All Employees":
-                    getEmployeeData();
+                    getEmployee();
                     break;
                 case "Add Employee":
                     addEmployee();
@@ -70,8 +72,8 @@ async function displayoptions() {
 };
 
 //retrieves all employee details from employee table
-async function getEmployeeData() {
-    const employeeData = await getEmployeeList();
+async function getEmployee() {
+    const employeeData = await getEmployeeData();
     console.table(employeeData);
     displayoptions();
 };
@@ -79,12 +81,14 @@ async function getEmployeeData() {
 //adds a new employee to employee table
 async function addEmployee() {
 
+    //gets data from role table to display different roles available for inquirer choices
     const roleList = await getRoleList();
     var roles = [];
     roleList.forEach(element => {
         roles.push(element.title);
     });
 
+    //gets data from employee table to display all managers for inquirer choices 
     const mangerList = await getEmployeeList();
     var managers = [];
     mangerList.forEach(element => {
@@ -119,11 +123,7 @@ async function addEmployee() {
     await inquirer.prompt(empPrompts)
         .then(data => {
 
-            console.log(data.firstname);
-            console.log(data.lastname);
-            console.log(data.emprole);
-            console.log(data.manager);
-
+            //converts the user selected role title to role id - to add data to employee table
             roleList.forEach(element => {
                 if (data.emprole === element.title) {
                     role_id = element.id;
@@ -131,6 +131,7 @@ async function addEmployee() {
                 }
             });
 
+            //converts the user selected manager name to id - to add data to emplpoyee table
             mangerList.forEach(element => {
                 var empName = element.first_name.concat(" ", element.last_name);
                 if (data.manager === empName)
@@ -147,14 +148,70 @@ async function addEmployee() {
 };
 
 //updates role of employee  to employee table
-function updateEmpRole() {
+async function updateEmpRole() {
+
+    //gets data from role table to display all roles for inquirer choices 
+    const roleList = await getRoleList();
+    var roles = [];
+    roleList.forEach(element => {
+        roles.push(element.title);
+    });
+
+    //gets data from employee table to display all employees(fullname) for inquirer manager choices
+    const employeeList = await getEmployeeList();
+    var employees = [];
+    employeeList.forEach(element => {
+        employees.push(element.first_name.concat(" ", element.last_name));
+    });
+
+    //inquirer for update employee role
+    const empPrompts = [
+        {
+            type: 'rawlist',
+            name: 'empname',
+            message: 'Select Employee Name:',
+            choices: employees,
+        },
+        {
+            type: 'rawlist',
+            name: 'emprole',
+            message: 'Select New Role for Emmployee:',
+            choices: roles,
+        },
+    ];
+    await inquirer.prompt(empPrompts)
+        .then(data => {
+            var empID;
+            var roleID;
+            console.log(roleList);
+
+            roleList.forEach(element => {
+                if (data.emprole === element.title) {
+                    roleID = element.id
+                }
+            });
+
+            employeeList.forEach(element => {
+                if (data.empname === element.first_name.concat(" ", element.last_name)) {
+                    empID = element.id
+
+                }
+            });
+            db.query(`UPDATE employee SET role_id = ${roleID} WHERE id = ${empID}`);
+
+
+        })
+        .catch(error => {
+            console.log(`Error occurred during update employee role ${error}`);
+        })
+    displayoptions();
 
 };
 
 //retrieves all role details from role table
 async function getRoles() {
-    const roleList = await getRoleList();
-    console.table(roleList);
+    const roleData = await getRoledata();
+    console.table(roleData);
     displayoptions();
 };
 
@@ -187,7 +244,6 @@ async function addRole() {
             depList.forEach(element => {
                 if (data.dept_name === element.name) {
                     dept_id = element.id;
-                    console.log(`I am ${dept_id}`);
                 }
             });
 
@@ -253,6 +309,25 @@ const getRoleList = () => {
 const getEmployeeList = () => {
     return new Promise((resolve, reject) => {
         db.query('SELECT * FROM employee', (err, results) => {
+            err ? reject(err) : resolve(results);
+        });
+    });
+};
+
+//retrives all role data from role table to display role details
+const getRoledata = () => {
+    return new Promise((resolve, reject) => {
+        db.query('SELECT title, salary, name AS department_name FROM role JOIN department ON role.department_id = department.id', (err, results) => {
+            err ? reject(err) : resolve(results);
+        });
+    });
+};
+
+//retrives all employee data from employee to display employee details
+const getEmployeeData = () => {
+    var sql = 'SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name as department_name, role.salary, CONCAT(e.first_name, " ", e.last_name) AS manager FROM employee LEFT JOIN role on employee.role_id = role.id  LEFT JOIN department on role.department_id = department.id LEFT JOIN employee e on employee.manager_id = e.id';
+    return new Promise((resolve, reject) => {
+        db.query(sql, (err, results) => {
             err ? reject(err) : resolve(results);
         });
     });
